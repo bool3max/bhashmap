@@ -13,7 +13,7 @@ and sizes. The goal is NOT to provide a specific hyper-optimized implementation 
 #include <stdbool.h>
 #include <sys/types.h>
 
-#include "include/bhashmap.h"
+#include "bhashmap.h"
 
 typedef struct HashPair {
     void *key, *value;
@@ -22,7 +22,7 @@ typedef struct HashPair {
 
 struct BHashMap {
     size_t capacity,
-           paircount;
+           pair_count;
 
     HashPair *table;
 };
@@ -43,7 +43,7 @@ bhm_create(const size_t capacity) {
 
     *new_map = (BHashMap) {
         .capacity = capacity,
-        .paircount = 0,
+        .pair_count = 0,
         .table = calloc(capacity, sizeof(HashPair))
     };
 
@@ -53,4 +53,9 @@ bhm_create(const size_t capacity) {
     }
 
     return new_map;
+}
+
+BHashMap *test(void) {
+    printf("XD");
+    return NULL;
 }
