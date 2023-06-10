@@ -8,4 +8,14 @@ project(
     ]
 )
 
-lib = library('bhashmap', 'src/bhashmap.c', include_directories: include_directories('src/include/'))
+cargs = []
+if get_option('debug_functions')
+    cargs += '-DBHM_DEBUG'
+endif
+
+lib_main = library(
+    'bhashmap',
+    'src/bhashmap.c',
+    include_directories: include_directories('src/include/'),
+    c_args: cargs
+)
