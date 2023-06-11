@@ -273,7 +273,7 @@ resize(BHashMap *map) {
     #ifdef BHM_DEBUG_BENCHMARK
     uint64_t time_elapsed = end_benchmark();
     double end_load_factor = get_load_factor(map);
-    fprintf(stderr, "\e[1;93mresize\e[0m %6lu -> %7lu, LF %.3lf -> %.3lf took %5lums.\n", capacity_old, capacity_new, start_load_factor, get_load_factor(map), time_elapsed);
+    fprintf(stderr, "\e[1;93mresize\e[0m \e[32m%6lu\e[0m -> \e[32m%7lu\e[0m, LF \e[32m%.3lf\e[0m -> \e[32m%.3lf\e[0m took %5lums.\n", capacity_old, capacity_new, start_load_factor, get_load_factor(map), time_elapsed);
     #endif
 
     return true;
