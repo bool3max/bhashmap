@@ -194,6 +194,7 @@ insert_pair(HashPair *pair, const void *key, const size_t keylen, const void *da
 static bool
 resize(BHashMap *map) {
     #ifdef BHM_DEBUG_BENCHMARK
+    double start_load_factor = get_load_factor(map);
     start_benchmark();
     #endif
 
@@ -271,7 +272,8 @@ resize(BHashMap *map) {
 
     #ifdef BHM_DEBUG_BENCHMARK
     uint64_t time_elapsed = end_benchmark();
-    fprintf(stderr, "\e[1;93mresize\e[0m %lu -> %lu took %lums.\n", capacity_old, capacity_new, time_elapsed);
+    double end_load_factor = get_load_factor(map);
+    fprintf(stderr, "\e[1;93mresize\e[0m %6lu -> %7lu, LF %.3lf -> %.3lf took %5lums.\n", capacity_old, capacity_new, start_load_factor, get_load_factor(map), time_elapsed);
     #endif
 
     return true;
