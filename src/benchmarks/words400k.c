@@ -8,6 +8,7 @@
 #include "bhashmap.h"
 
 #define MAXWORDLEN 50
+#define ITERATIONS 32
 
 int main(void) {
     char (*words)[MAXWORDLEN] = malloc(WORDSTXT_COUNT * MAXWORDLEN);
@@ -23,7 +24,7 @@ int main(void) {
     struct timespec time_start, time_end;
     clock_gettime(CLOCK_MONOTONIC, &time_start);
 
-    for (size_t j = 0; j < 32; j++) {
+    for (size_t j = 0; j < ITERATIONS; j++) {
         BHashMap *map = bhm_create(32);
 
         if (!map) {
@@ -44,9 +45,9 @@ int main(void) {
 
     clock_gettime(CLOCK_MONOTONIC, &time_end);
 
-    uint64_t nano_elapsed = (time_end.tv_sec * 1000000000 + time_end.tv_nsec) - (time_start.tv_sec * 1000000000 + time_start.tv_sec);
+    uint64_t nano_elapsed = (time_end.tv_sec * 1000000000 + time_end.tv_nsec) - (time_start.tv_sec * 1000000000 + time_start.tv_nsec);
 
-    printf("Time elapsed: %lums\n", nano_elapsed / 1000000);
+    printf("%d iterations took: %lums\n", ITERATIONS, nano_elapsed / 1000000);
 
     free(words);
     return EXIT_SUCCESS;

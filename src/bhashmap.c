@@ -1,15 +1,3 @@
-/*
-BHashMap is a generic Hash Table implementation written in C11. It was initially written with the primary goal of learning the ins-and-outs
-of the hash table data structure, however it has since evolved to be a very solid, usable implementation.
-
-The goal is to provide performant, general hash table implementation with a pleasant-to-use API that allows for keys and values of arbitrary types
-and sizes. The goal is NOT to provide a specific hyper-optimized implementation for any one specific use case. For example, the API allows
-for multi-gigabyte memory regions to be used as keys, without any restrictions. While this is of course not desireable, it's possible.
-
-If the macro BHM_DEBUG is defined, the functions throughout the library print various
-debug messages and info to stderr.
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -18,6 +6,7 @@ debug messages and info to stderr.
 #include <sys/types.h>
 
 #include "bhashmap.h"
+#include "benchmark.h"
 
 #define BHM_LOAD_FACTOR_LIMIT 0.75
 #define BHM_RESIZE_FACTOR 2
@@ -138,7 +127,7 @@ RETURN VALUE:
     On failure, return NULL.
 */
 BHashMap *
-bhm_create(const size_t capacity) {
+bhm_create(const size_t initial_capacity) {
     BHashMap *new_map = malloc(sizeof(BHashMap));
 
     if (!new_map) {
@@ -146,9 +135,9 @@ bhm_create(const size_t capacity) {
     }
 
     *new_map = (BHashMap) {
-        .capacity = capacity,
+        .capacity = initial_capacity,
         .pair_count = 0,
-        .buckets = calloc(capacity, sizeof(HashPair))
+        .buckets = calloc(initial_capacity, sizeof(HashPair))
     };
 
     if (!new_map->buckets) {
@@ -156,7 +145,7 @@ bhm_create(const size_t capacity) {
         return NULL;
     }
 
-    DEBUG_PRINT("Created hash map with capacity %lu.\n", capacity);
+    DEBUG_PRINT("Created hash map with capacity %lu.\n", initial_capacity);
 
     return new_map;
 }
@@ -204,7 +193,9 @@ insert_pair(HashPair *pair, const void *key, const size_t keylen, const void *da
 */
 static bool
 resize(BHashMap *map) {
-    DEBUG_PRINT("Current load factor: \e[1;93m%.3lf\e[0m exceeds load factor limit: \e[1;93m%.3lf\e[0m. Resizing hashmap by factor \e[1;93m%d\e[0m.\n", get_load_factor(map), BHM_LOAD_FACTOR_LIMIT, BHM_RESIZE_FACTOR);
+    #ifdef BHM_DEBUG_BENCHMARK
+    start_benchmark();
+    #endif
 
     size_t capacity_new = map->capacity * BHM_RESIZE_FACTOR,
            capacity_old = map->capacity;
@@ -278,7 +269,10 @@ resize(BHashMap *map) {
 
     free_buckets(buckets_old, capacity_old);
 
-    DEBUG_PRINT("\tResize successful. New load factor: \e[1;93m%.3lf\e[0m.\n", get_load_factor(map));
+    #ifdef BHM_DEBUG_BENCHMARK
+    uint64_t time_elapsed = end_benchmark();
+    fprintf(stderr, "\e[1;93mresize\e[0m %lu -> %lu took %lums.\n", capacity_old, capacity_new, time_elapsed);
+    #endif
 
     return true;
 }

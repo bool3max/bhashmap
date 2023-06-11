@@ -4,13 +4,17 @@ project(
     license: 'MIT',
     license_files: 'LICENSE',
     default_options: [
-        'c_std=c11'
+        'warning_level=2'
     ]
 )
 
 cargs = []
 if get_option('debug_functions')
     cargs += '-DBHM_DEBUG'
+endif
+
+if get_option('debug_benchmark')
+    cargs += '-DBHM_DEBUG_BENCHMARK'
 endif
 
 incdir = include_directories('src/include/')
@@ -30,7 +34,6 @@ if get_option('build_benchmarks')
         include_directories: incdir,
         link_with: lib_main,
         c_args: [
-            '-std=gnu11',
             '-DWORDSTXT_COUNT=' + word_linecount
         ]
     )
