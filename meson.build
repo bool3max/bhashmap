@@ -23,7 +23,8 @@ lib_main = library(
     'bhashmap',
     'src/bhashmap.c',
     include_directories: incdir,
-    c_args: cargs
+    c_args: cargs,
+    install: true
 )
 
 if get_option('build_benchmarks')
