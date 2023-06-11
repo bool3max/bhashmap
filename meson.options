@@ -1,1 +1,2 @@
 option('debug_functions', type: 'boolean', value: false, description: 'Make each function of the library print relevant debug information to stderr. This option can be enabled/disabled regardless of build type or other build parameters.')
+option('build_benchmarks', type: 'boolean', value: true, description: 'Build the benchmark suite executables.')
