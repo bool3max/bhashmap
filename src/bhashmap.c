@@ -399,7 +399,7 @@ For each key in the map, call the passed in callback function, passing in a poin
 the length of the key.
 */
 void
-bhm_iterate_keys(const BHashMap *map, bhm_iterator_callback callback_function) {
+bhm_iterate_keys(const BHashMap *map, bhm_iterator_keys_callback callback_function) {
     for (size_t i = 0; i < map->capacity; i++) {
         HashPair *pair = &map->buckets[i];
 
@@ -412,6 +412,14 @@ bhm_iterate_keys(const BHashMap *map, bhm_iterator_callback callback_function) {
             pair = pair->next;
         }
     }
+}
+
+/*
+Return the count of key-value pairs in the hash map.
+*/
+size_t
+bhm_count(const BHashMap *map) {
+    return map->pair_count;
 }
 
 /*
