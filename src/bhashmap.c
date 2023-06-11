@@ -19,7 +19,7 @@ debug messages and info to stderr.
 
 #include "bhashmap.h"
 
-#define BHM_LOAD_FACTOR_LIMIT 0.7
+#define BHM_LOAD_FACTOR_LIMIT 0.75
 #define BHM_RESIZE_FACTOR 2
 
 /*
@@ -28,7 +28,7 @@ and as such no print is performed.
 */
 #ifdef BHM_DEBUG
 #define DEBUG_PRINT(fmt, ...) \
-    fprintf(stderr, __func__ ": " fmt, __VA_ARGS__)
+    fprintf(stderr, "\e[1;93m%s\e[0m: \e[4m" fmt "\e[0m", __func__, __VA_ARGS__)
 #else
 #define DEBUG_PRINT(fmt, ...)
 #endif
@@ -102,9 +102,34 @@ murmur3_32(const char *key, uint32_t len, uint32_t seed) {
 }
 
 static inline double
-get_load_factor(BHashMap *map) {
+get_load_factor(const BHashMap *map) {
     return (double) map->pair_count / (double) map->capacity;
 }
+
+/*
+Calculate and print various statistics to specified stream.
+*/
+void
+bhm_print_debug_stats(const BHashMap *map, FILE *stream) {
+    size_t empty_bucket_count = 0,
+           overflow_bucket_count = 0; // buckets with more than one element in ll
+    for (size_t i = 0; i < map->capacity; i++) {
+        if (map->buckets[i].key == NULL) {
+            empty_bucket_count += 1;
+        }
+
+        if (map->buckets[i].next != NULL) {
+            overflow_bucket_count += 1;
+        }
+    }
+
+    fprintf(stream, "\e[1;93mcapacity (buckets): %lu\n", map->capacity);
+    fprintf(stream, "\e[1;93mitems (pairs): %lu\n", map->pair_count);
+    fprintf(stream, "\e[1;93mempty buckets: %lu\n", empty_bucket_count);
+    fprintf(stream, "\e[1;93moverflown buckets %lu\n", overflow_bucket_count);
+    fprintf(stream, "\e[1;93mload factor: %.3lf\n", get_load_factor(map));
+}
+
 
 /*
 Create a new BHashMap with a given capacity.
@@ -145,7 +170,7 @@ find_bucket(BHashMap *map, const void *key, const size_t keylen) {
     const uint32_t hash       = HASH(key, keylen),
                    bucket_idx = hash % map->capacity;
 
-    DEBUG_PRINT("KEY: '%s', BUCKET IDX: %u\n", (char * key), bucket_idx);
+    DEBUG_PRINT("KEY: '%s', BUCKET IDX: %u\n", (char *) key, bucket_idx);
 
     return &map->buckets[bucket_idx];
 }
@@ -182,7 +207,7 @@ bool
 bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
     HashPair *bucket = find_bucket(map, key, keylen);
     
-    /* best case - given bucket completely empty - insert key-value pari*/
+    /* best case - given bucket completely empty - insert key-value pair */
     if (bucket->key == NULL) {
         if (!insert_pair(bucket, key, keylen, data)) {
             return false;
