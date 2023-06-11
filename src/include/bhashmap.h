@@ -3,6 +3,7 @@
 #include <stdbool.h>
 
 typedef struct BHashMap BHashMap;
+typedef void (*bhm_iterator_callback)(const void *key, const size_t keylen);
 
 BHashMap *
 bhm_create(const size_t capacity);
@@ -18,3 +19,6 @@ bhm_destroy(BHashMap *map);
 
 void
 bhm_print_debug_stats(const BHashMap *map, FILE *stream);
+
+void
+bhm_iterate_keys(const BHashMap *map, bhm_iterator_callback callback_function); 

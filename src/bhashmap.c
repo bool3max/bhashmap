@@ -4,7 +4,7 @@ of the hash table data structure, however it has since evolved to be a very soli
 
 The goal is to provide performant, general hash table implementation with a pleasant-to-use API that allows for keys and values of arbitrary types
 and sizes. The goal is NOT to provide a specific hyper-optimized implementation for any one specific use case. For example, the API allows
-for multi-gigabyte memory regions to be used as keys, without any restrictions. While this is of course not ideal, it's possible.
+for multi-gigabyte memory regions to be used as keys, without any restrictions. While this is of course not desireable, it's possible.
 
 If the macro BHM_DEBUG is defined, the functions throughout the library print various
 debug messages and info to stderr.
@@ -48,6 +48,9 @@ struct BHashMap {
 
     HashPair *buckets;
 };
+
+static void
+free_buckets(HashPair *buckets, const size_t bucket_count);
 
 // Murmurhash3 implementation
 uint32_t
@@ -113,20 +116,17 @@ void
 bhm_print_debug_stats(const BHashMap *map, FILE *stream) {
     size_t empty_bucket_count = 0,
            overflow_bucket_count = 0; // buckets with more than one element in ll
+
     for (size_t i = 0; i < map->capacity; i++) {
         if (map->buckets[i].key == NULL) {
             empty_bucket_count += 1;
-        }
-
-        if (map->buckets[i].next != NULL) {
-            overflow_bucket_count += 1;
         }
     }
 
     fprintf(stream, "\e[1;93mcapacity (buckets): %lu\n", map->capacity);
     fprintf(stream, "\e[1;93mitems (pairs): %lu\n", map->pair_count);
     fprintf(stream, "\e[1;93mempty buckets: %lu\n", empty_bucket_count);
-    fprintf(stream, "\e[1;93moverflown buckets %lu\n", overflow_bucket_count);
+    fprintf(stream, "\e[1;93moverflown buckets: %lu\n", overflow_bucket_count);
     fprintf(stream, "\e[1;93mload factor: %.3lf\n", get_load_factor(map));
 }
 
@@ -194,6 +194,96 @@ insert_pair(HashPair *pair, const void *key, const size_t keylen, const void *da
 }
 
 /*
+    Resize the given hash map by the constant resize factor.
+
+    On failure, the hash map is not resized and remains just as it was before the call.
+    
+    RETURN VALUE:
+        On success, true is returned.
+        On failure, false is returned.
+*/
+static bool
+resize(BHashMap *map) {
+    DEBUG_PRINT("Current load factor: \e[1;93m%.3lf\e[0m exceeds load factor limit: \e[1;93m%.3lf\e[0m. Resizing hashmap by factor \e[1;93m%d\e[0m.\n", get_load_factor(map), BHM_LOAD_FACTOR_LIMIT, BHM_RESIZE_FACTOR);
+
+    size_t capacity_new = map->capacity * BHM_RESIZE_FACTOR,
+           capacity_old = map->capacity;
+
+    HashPair *buckets_new = calloc(capacity_new, sizeof(HashPair)),
+             *buckets_old = map->buckets;
+
+    if (!buckets_new) {
+        DEBUG_PRINT("\tresizing %lu -> %lu failed\n", capacity_old, capacity_new);
+        return false;
+    }
+
+    map->buckets = buckets_new;
+    map->capacity = capacity_new;
+
+    /* rehash every pair in the old map */
+    for (size_t i = 0; i < capacity_old; i++) {
+        HashPair *old_head = &buckets_old[i];
+
+        /* empty bucket - no LL */
+        if (old_head->key == NULL) {
+            continue;
+        }
+
+        while (old_head) {
+            HashPair *new_buckets_dest = find_bucket(map, old_head->key, old_head->keylen);
+
+            if (new_buckets_dest->key == NULL) {
+                if (!insert_pair(new_buckets_dest, old_head->key, old_head->keylen, old_head->value)) {
+                    map->buckets = buckets_old;
+                    map->capacity = capacity_old;
+                    free(buckets_new);
+                    return false;
+                }
+
+                old_head = old_head->next;
+                continue;
+            }
+
+            // first bucket full, potential LL, iterate it until end
+            while (new_buckets_dest) {
+                if (new_buckets_dest->next == NULL) {
+                    break;
+                }
+
+                new_buckets_dest = new_buckets_dest->next;
+            }
+
+            // allocate space for new hashpair
+            HashPair *new_pair = malloc(sizeof(HashPair));
+            if (!new_pair) {
+                map->buckets = buckets_old;
+                map->capacity = capacity_old;
+                free(buckets_new);
+                return false;
+            }
+
+            if (!insert_pair(new_pair, old_head->key, old_head->keylen, old_head->value)) {
+                map->buckets = buckets_old;
+                map->capacity = capacity_old;
+                free(buckets_new);
+                return false;
+            }
+
+            new_pair->next = NULL;
+            new_buckets_dest->next = new_pair;
+
+            old_head = old_head->next;
+        }
+    }
+
+    free_buckets(buckets_old, capacity_old);
+
+    DEBUG_PRINT("\tResize successful. New load factor: \e[1;93m%.3lf\e[0m.\n", get_load_factor(map));
+
+    return true;
+}
+
+/*
 Insert a new key-value pair into the hashmap, or update the associated value if the key already
 exists in the hashmap.
 
@@ -214,6 +304,10 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
         }
 
         map->pair_count += 1;
+
+        if (get_load_factor(map) >= BHM_LOAD_FACTOR_LIMIT) {
+            resize(map);
+        }
 
         return true;
     }
@@ -243,6 +337,10 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
             head->next = new_pair;
 
             map->pair_count += 1;
+
+            if (get_load_factor(map) >= BHM_LOAD_FACTOR_LIMIT) {
+                resize(map);
+            }
 
             return true;
         }
@@ -279,17 +377,12 @@ bhm_get(BHashMap *map, const void *key, const size_t keylen) {
     return NULL;
 }
 
-/*
-Free all resources occupied by the hash map. This includes the memory of the main BHashMap
-structure, the memory for all the hash pairs in the structure (those at the 'root' as well as 
-those in the linked lists), as well as memory for all the copied keys.
-*/
-void
-bhm_destroy(BHashMap *map) {
-    for (size_t i = 0; i < map->capacity; i++) {
-        free(map->buckets[i].key);
+static void
+free_buckets(HashPair *buckets, const size_t bucket_count) {
+    for (size_t i = 0; i < bucket_count; i++)  {
+        free(buckets[i].key);
 
-        HashPair *head = map->buckets[i].next;
+        HashPair *head = buckets[i].next;
 
         while (head) {
             HashPair *n = head->next;
@@ -301,6 +394,37 @@ bhm_destroy(BHashMap *map) {
         }
     }
 
-    free(map->buckets);
+    free(buckets);
+}
+
+
+/*
+For each key in the map, call the passed in callback function, passing in a pointer to the key, as well as
+the length of the key.
+*/
+void
+bhm_iterate_keys(const BHashMap *map, bhm_iterator_callback callback_function) {
+    for (size_t i = 0; i < map->capacity; i++) {
+        HashPair *pair = &map->buckets[i];
+
+        if (pair->key == NULL) {
+            continue;
+        }
+
+        while (pair) {
+            callback_function(pair->key, pair->keylen);
+            pair = pair->next;
+        }
+    }
+}
+
+/*
+Free all resources occupied by the hash map. This includes the memory of the main BHashMap
+structure, the memory for all the hash pairs in the structure (those at the 'root' as well as 
+those in the linked lists), as well as memory for all the copied keys.
+*/
+void
+bhm_destroy(BHashMap *map) {
+    free_buckets(map->buckets, map->capacity);
     free(map);
 }
