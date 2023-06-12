@@ -395,11 +395,11 @@ free_buckets(HashPair *buckets, const size_t bucket_count) {
 
 
 /*
-For each key in the map, call the passed in callback function, passing in a pointer to the key, as well as
-the length of the key.
+For each pair in the map, call the passed in callback function, passing in a pointer to the key,
+the length of the key, and a pointer to the value.
 */
 void
-bhm_iterate_keys(const BHashMap *map, bhm_iterator_keys_callback callback_function) {
+bhm_iterate(const BHashMap *map, bhm_iterator_callback callback_function) {
     for (size_t i = 0; i < map->capacity; i++) {
         HashPair *pair = &map->buckets[i];
 
@@ -408,7 +408,7 @@ bhm_iterate_keys(const BHashMap *map, bhm_iterator_keys_callback callback_functi
         }
 
         while (pair) {
-            callback_function(pair->key, pair->keylen);
+            callback_function(pair->key, pair->keylen, pair->value);
             pair = pair->next;
         }
     }

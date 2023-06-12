@@ -39,4 +39,11 @@ if get_option('build_benchmarks')
         ]
     )
 
+    executable(
+        'bench_ints',
+        'src/benchmarks/benchmark_ints.c',
+        include_directories: incdir,
+        link_with: lib_main
+    )
+
 endif
