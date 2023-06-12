@@ -31,7 +31,7 @@ if get_option('build_benchmarks')
     word_linecount = run_command('bash', '-c', 'wc -l $MESON_SOURCE_ROOT/words.txt | cut -f 1 -d " "', check: true).stdout().strip()
     executable(
         'bench_words400k',
-        'src/benchmarks/words400k.c',
+        'src/benchmarks/benchmark_words400k.c',
         include_directories: incdir,
         link_with: lib_main,
         c_args: [
