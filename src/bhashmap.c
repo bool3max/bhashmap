@@ -492,7 +492,10 @@ bhm_destroy(BHashMap *map) {
     fprintf(stderr, "\e[1;93mdestroy:\e[0m took %5lums.\n", time_elapsed);
     fprintf(
         stderr,
-        "\e[1;93mdestroy:\e[0m total time spent in functions of this instance:\n\t\e[1;93mbhm_resize\e[0m:\e[92m%5lums\e[0m\n\t\e[1;93mbhm_get\e[0m: \e[92m%5lums\e[0m\n\t\e[1;93mbhm_set\e[0m: \e[92m%5lums\e[0m\n",
+        "\e[1;93mdestroy:\e[0m total time spent in functions of this instance:\n"
+        "\t\e[1;93mbhm_resize\e[0m:\e[92m%5lums\e[0m\n"
+        "\t\e[1;93mbhm_get\e[0m: \e[92m%5lums\e[0m\n"
+        "\t\e[1;93mbhm_set\e[0m: \e[92m%5lums\e[0m\n",
         map->debug_benchmark_times.bhm_resize_total_ms,
         map->debug_benchmark_times.bhm_get_total_ms,
         map->debug_benchmark_times.bhm_set_total_ms
