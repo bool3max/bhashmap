@@ -274,7 +274,7 @@ resize(BHashMap *map) {
                 continue;
             }
 
-            /* dest bucket slot filled, find last pair in ll, copy current old head over */
+            /* dest bucket slot filled, find last pair in ll, current old head */
             HashPair *last_in_chain = *bucket_new;
             while (last_in_chain->next != NULL) {
                 last_in_chain = last_in_chain->next;
