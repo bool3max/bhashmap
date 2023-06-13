@@ -20,5 +20,5 @@ end_benchmark(const uint64_t nanos_at_start) {
 
     uint64_t nanos_at_end = (benchmark_time_end.tv_nsec) + (benchmark_time_end.tv_sec * 1000000000);
 
-    return (nanos_at_end - nanos_at_start);
+    return (nanos_at_end - nanos_at_start) / 1000000;
 }

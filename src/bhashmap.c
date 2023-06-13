@@ -36,6 +36,14 @@ struct BHashMap {
            pair_count;
 
     HashPair *buckets;
+
+    #ifdef BHM_DEBUG_BENCHMARK
+    struct _DebugBenchmarkTimes {
+        size_t bhm_resize_total_ms,
+               bhm_set_total_ms,
+               bhm_get_total_ms; 
+    } debug_benchmark_times;
+    #endif
 };
 
 static void
@@ -128,10 +136,6 @@ RETURN VALUE:
 */
 BHashMap *
 bhm_create(const size_t initial_capacity) {
-    #ifdef BHM_DEBUG_BENCHMARK
-    start_benchmark();
-    #endif
-
     BHashMap *new_map = malloc(sizeof(BHashMap));
 
     if (!new_map) {
@@ -141,19 +145,21 @@ bhm_create(const size_t initial_capacity) {
     *new_map = (BHashMap) {
         .capacity = initial_capacity,
         .pair_count = 0,
-        .buckets = calloc(initial_capacity, sizeof(HashPair))
+        .buckets = calloc(initial_capacity, sizeof(HashPair)),
     };
+
+    #ifdef BHM_DEBUG_BENCHMARK
+    new_map->debug_benchmark_times = (struct _DebugBenchmarkTimes) {
+        0, 0, 0
+    };
+    #endif
 
     if (!new_map->buckets) {
         free(new_map);
         return NULL;
     }
 
-    DEBUG_PRINT("Created hash map with capacity %lu.\n", initial_capacity);
-    #ifdef BHM_DEBUG_BENCHMARK
-    uint64_t time_elapsed = end_benchmark();
-    fprintf(stderr, "\e[1;93mcreate:\e[0m took %5lums.\n", time_elapsed);
-    #endif
+    DEBUG_PRINT("\e[93;1mbhm_create\e[0m: created hash map with capacity %lu.\n", initial_capacity);
 
     return new_map;
 }
@@ -203,7 +209,7 @@ static bool
 resize(BHashMap *map) {
     #ifdef BHM_DEBUG_BENCHMARK
     double start_load_factor = get_load_factor(map);
-    start_benchmark();
+    uint64_t bench_start_nanos = start_benchmark();
     #endif
 
     size_t capacity_new = map->capacity * BHM_RESIZE_FACTOR,
@@ -279,9 +285,10 @@ resize(BHashMap *map) {
     free_buckets(buckets_old, capacity_old);
 
     #ifdef BHM_DEBUG_BENCHMARK
-    uint64_t time_elapsed = end_benchmark();
+    uint64_t time_elapsed = end_benchmark(bench_start_nanos);
     double end_load_factor = get_load_factor(map);
     fprintf(stderr, "\e[1;93mresize\e[0m \e[32m%6lu\e[0m -> \e[32m%7lu\e[0m, LF \e[32m%.3lf\e[0m -> \e[32m%.3lf\e[0m took %5lums.\n", capacity_old, capacity_new, start_load_factor, get_load_factor(map), time_elapsed);
+    map->debug_benchmark_times.bhm_resize_total_ms += time_elapsed;
     #endif
 
     return true;
@@ -299,6 +306,10 @@ RETURN VALUE:
 */
 bool
 bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
+    #ifdef BHM_DEBUG_BENCHMARK
+    const uint64_t bench_start_nanos = start_benchmark();
+    #endif
+
     HashPair *bucket = find_bucket(map, key, keylen);
     
     /* best case - given bucket completely empty - insert key-value pair */
@@ -308,6 +319,12 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
         }
 
         map->pair_count += 1;
+
+        #ifdef BHM_DEBUG_BENCHMARK
+        uint64_t time_elapsed = end_benchmark(bench_start_nanos);
+        fprintf("bhm_set elapsed: %luns\n", time_elapsed);
+        map->debug_benchmark_times.bhm_set_total_ms += time_elapsed;
+        #endif
 
         if (get_load_factor(map) >= BHM_LOAD_FACTOR_LIMIT) {
             resize(map);
@@ -322,6 +339,13 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
         if (head->keylen == keylen && memcmp(key, head->key, keylen) == 0) {
             /* found the key already in the map - update its value */
             head->value = data;
+
+            #ifdef BHM_DEBUG_BENCHMARK
+            uint64_t time_elapsed = end_benchmark(bench_start_nanos);
+            fprintf("bhm_set elapsed: %luns\n", time_elapsed);
+            map->debug_benchmark_times.bhm_set_total_ms += time_elapsed;
+            #endif
+
             return true;
         }
 
@@ -342,6 +366,11 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
 
             map->pair_count += 1;
 
+            #ifdef BHM_DEBUG_BENCHMARK
+            uint64_t time_elapsed = end_benchmark(bench_start_nanos);
+            map->debug_benchmark_times.bhm_set_total_ms += time_elapsed;
+            #endif
+
             if (get_load_factor(map) >= BHM_LOAD_FACTOR_LIMIT) {
                 resize(map);
             }
@@ -351,6 +380,11 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
 
         head = head->next;
     }
+
+    #ifdef BHM_DEBUG_BENCHMARK
+    uint64_t time_elapsed = end_benchmark(bench_start_nanos);
+    map->debug_benchmark_times.bhm_set_total_ms += time_elapsed;
+    #endif
 
     return false; // ERROR ?
 }
@@ -363,6 +397,10 @@ RETURN VALUE:
 */
 void *
 bhm_get(BHashMap *map, const void *key, const size_t keylen) {
+    #ifdef BHM_DEBUG_BENCHMARK
+    uint64_t bench_start_nanos = start_benchmark();
+    #endif
+
     HashPair *bucket = find_bucket(map, key, keylen);
 
     /* empty bucket, key definitely not in map */
@@ -377,6 +415,11 @@ bhm_get(BHashMap *map, const void *key, const size_t keylen) {
 
         bucket = bucket->next;
     }
+
+    #ifdef BHM_DEBUG_BENCHMARK
+    uint64_t time_elapsed = end_benchmark(bench_start_nanos);
+    map->debug_benchmark_times.bhm_get_total_ms += time_elapsed;
+    #endif
 
     return NULL;
 }
@@ -438,14 +481,21 @@ those in the linked lists), as well as memory for all the copied keys.
 void
 bhm_destroy(BHashMap *map) {
     #ifdef BHM_DEBUG_BENCHMARK
-    start_benchmark();
+    uint64_t bench_start_nanos = start_benchmark();
     #endif
 
     free_buckets(map->buckets, map->capacity);
     free(map);
 
     #ifdef BHM_DEBUG_BENCHMARK
-    uint64_t time_elapsed = end_benchmark();
+    uint64_t time_elapsed = end_benchmark(bench_start_nanos);
     fprintf(stderr, "\e[1;93mdestroy:\e[0m took %5lums.\n", time_elapsed);
+    fprintf(
+        stderr,
+        "\e[1;93mdestroy:\e[0m total time spent in functions of this instance:\n\t\e[1;93mbhm_resize\e[0m:\e[92m%5lums\e[0m\n\t\e[1;93mbhm_get\e[0m: \e[92m%5lums\e[0m\n\t\e[1;93mbhm_set\e[0m: \e[92m%5lums\e[0m\n",
+        map->debug_benchmark_times.bhm_resize_total_ms,
+        map->debug_benchmark_times.bhm_get_total_ms,
+        map->debug_benchmark_times.bhm_set_total_ms
+    );
     #endif
 }
