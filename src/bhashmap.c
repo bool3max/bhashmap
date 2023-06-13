@@ -38,10 +38,10 @@ struct BHashMap {
     HashPair *buckets;
 
     #ifdef BHM_DEBUG_BENCHMARK
-    struct _DebugBenchmarkTimes {
+    struct _debugBenchmarkTimes {
         size_t bhm_resize_total_ms,
                bhm_set_total_ms,
-               bhm_get_total_ms; 
+               bhm_get_total_ms
     } debug_benchmark_times;
     #endif
 };
@@ -129,7 +129,7 @@ bhm_print_debug_stats(const BHashMap *map, FILE *stream) {
 
 
 /*
-Create a new BHashMap with a given capacity.
+Create a new BHashMap with a given initial capacity.
 RETURN VALUE:
     On success, return a pointer to the new BHashMap.
     On failure, return NULL.
@@ -150,7 +150,7 @@ bhm_create(const size_t initial_capacity) {
 
     #ifdef BHM_DEBUG_BENCHMARK
     new_map->debug_benchmark_times = (struct _DebugBenchmarkTimes) {
-        0, 0, 0
+        0, 0, 0, 0
     };
     #endif
 
@@ -322,7 +322,6 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
 
         #ifdef BHM_DEBUG_BENCHMARK
         uint64_t time_elapsed = end_benchmark(bench_start_nanos);
-        fprintf("bhm_set elapsed: %luns\n", time_elapsed);
         map->debug_benchmark_times.bhm_set_total_ms += time_elapsed;
         #endif
 
@@ -342,7 +341,6 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
 
             #ifdef BHM_DEBUG_BENCHMARK
             uint64_t time_elapsed = end_benchmark(bench_start_nanos);
-            fprintf("bhm_set elapsed: %luns\n", time_elapsed);
             map->debug_benchmark_times.bhm_set_total_ms += time_elapsed;
             #endif
 
@@ -459,7 +457,7 @@ bhm_iterate(const BHashMap *map, bhm_iterator_callback callback_function) {
         }
 
         while (pair) {
-            callback_function(pair->key, pair->keylen, pair->value);
+            callback_function(pair->key, pair->keylen, (void *) pair->value);
             pair = pair->next;
         }
     }
@@ -489,16 +487,17 @@ bhm_destroy(BHashMap *map) {
 
     #ifdef BHM_DEBUG_BENCHMARK
     uint64_t time_elapsed = end_benchmark(bench_start_nanos);
-    fprintf(stderr, "\e[1;93mdestroy:\e[0m took %5lums.\n", time_elapsed);
     fprintf(
         stderr,
         "\e[1;93mdestroy:\e[0m total time spent in functions of this instance:\n"
-        "\t\e[1;93mbhm_resize\e[0m:\e[92m%5lums\e[0m\n"
-        "\t\e[1;93mbhm_get\e[0m: \e[92m%5lums\e[0m\n"
-        "\t\e[1;93mbhm_set\e[0m: \e[92m%5lums\e[0m\n",
+        "\t\e[1;93mbhm_resize\e[0m:\e[92m%lums\e[0m\n"
+        "\t\e[1;93mbhm_get\e[0m:\e[92m%lums\e[0m\n"
+        "\t\e[1;93mbhm_set\e[0m:\e[92m%lums\e[0m\n"
+        "\t\e[1;93mbhm_destroy\e[0m:\e[92m%lums\e[0m\n",
         map->debug_benchmark_times.bhm_resize_total_ms,
         map->debug_benchmark_times.bhm_get_total_ms,
-        map->debug_benchmark_times.bhm_set_total_ms
+        map->debug_benchmark_times.bhm_set_total_ms,
+        time_elapsed
     );
     #endif
 }
