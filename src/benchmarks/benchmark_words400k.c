@@ -8,7 +8,7 @@
 #include "bhashmap.h"
 
 #define MAXWORDLEN 50
-#define ITERATIONS 32
+#define ITERATIONS 1
 
 int main(void) {
     char (*words)[MAXWORDLEN] = malloc(WORDSTXT_COUNT * MAXWORDLEN);
