@@ -6,7 +6,7 @@ into a very solid and usable library.
 
 The main goals are:
 
-* Allow for keys and values of arbitrary length and types
+* Allow for keys and values of arbitrary lengths and types
 * Provide a sane, easy to use API
 
 # Setup
