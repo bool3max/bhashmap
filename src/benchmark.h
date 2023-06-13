@@ -2,7 +2,7 @@
 #include <stdint.h>
 
 /* return: nanos at bench start*/
-uint64_t
+static inline uint64_t
 start_benchmark(void) {
     struct timespec benchmark_time_start;
     clock_gettime(CLOCK_MONOTONIC_RAW, &benchmark_time_start);
@@ -13,7 +13,7 @@ start_benchmark(void) {
 /*
 Return time elapsed since benchmark was started, in milliseconds.
 */
-static uint64_t
+static inline uint64_t
 end_benchmark(const uint64_t nanos_at_start) {
     struct timespec benchmark_time_end;
     clock_gettime(CLOCK_MONOTONIC_RAW, &benchmark_time_end);
