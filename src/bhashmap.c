@@ -22,7 +22,7 @@ and as such no print is performed.
 #define DEBUG_PRINT(fmt, ...)
 #endif
 
-#define HASH(dataptr, len) murmur3_32(dataptr, len, 1u)
+#define HASH(dataptr, datalen) murmur3_32(dataptr, datalen, 1u)
 
 typedef struct HashPair {
     void *key;
@@ -41,7 +41,7 @@ struct BHashMap {
     struct _debugBenchmarkTimes {
         size_t bhm_resize_total_ms,
                bhm_set_total_ms,
-               bhm_get_total_ms
+               bhm_get_total_ms;
     } debug_benchmark_times;
     #endif
 };
@@ -146,13 +146,12 @@ bhm_create(const size_t initial_capacity) {
         .capacity = initial_capacity,
         .pair_count = 0,
         .buckets = calloc(initial_capacity, sizeof(HashPair)),
+        #ifdef BHM_DEBUG_BENCHMARK
+        .debug_benchmark_times = (struct _debugBenchmarkTimes) {
+            0, 0, 0, 0
+        },
+        #endif
     };
-
-    #ifdef BHM_DEBUG_BENCHMARK
-    new_map->debug_benchmark_times = (struct _DebugBenchmarkTimes) {
-        0, 0, 0, 0
-    };
-    #endif
 
     if (!new_map->buckets) {
         free(new_map);
@@ -489,7 +488,7 @@ bhm_destroy(BHashMap *map) {
     uint64_t time_elapsed = end_benchmark(bench_start_nanos);
     fprintf(
         stderr,
-        "\e[1;93mdestroy:\e[0m total time spent in functions of this instance:\n"
+        "\e[1;93mbhm_destroy:\e[0m total time spent in functions of this instance:\n"
         "\t\e[1;93mbhm_resize\e[0m:\e[92m%lums\e[0m\n"
         "\t\e[1;93mbhm_get\e[0m:\e[92m%lums\e[0m\n"
         "\t\e[1;93mbhm_set\e[0m:\e[92m%lums\e[0m\n"
