@@ -497,7 +497,6 @@ bhm_destroy(BHashMap *map) {
     #endif
 
     free_buckets(map->buckets, map->capacity);
-    free(map);
 
     #ifdef BHM_DEBUG_BENCHMARK
     uint64_t time_elapsed = end_benchmark(bench_start_nanos);
@@ -514,4 +513,6 @@ bhm_destroy(BHashMap *map) {
         time_elapsed
     );
     #endif
+
+    free(map);
 }
