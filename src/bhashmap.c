@@ -49,6 +49,9 @@ struct BHashMap {
 static void
 free_buckets(HashPair **buckets, const size_t bucket_count);
 
+static inline HashPair *
+create_pair(void); 
+
 // Murmurhash3 implementation
 uint32_t
 murmur3_32(const char *key, uint32_t len, uint32_t seed) {
@@ -163,23 +166,6 @@ bhm_create(const size_t initial_capacity) {
         return NULL;
     }
 
-    for (size_t i = 0; i < initial_capacity; i++) {
-        new_map->buckets[i] = malloc(sizeof(HashPair));
-        if (!new_map->buckets[i]) {
-            /* free all previously allocated buckets */
-            for (size_t j = 0; j <= i; j++)  {
-                free(new_map->buckets[j]);
-            }
-
-            free(new_map->buckets);
-            free(new_map);
-            return NULL;
-        }
-
-        /* zero-out all fields of the struct */
-        *(new_map->buckets[i]) = (struct HashPair) {0};
-    }
-
     DEBUG_PRINT("\e[93;1mbhm_create\e[0m: created hash map with capacity %lu.\n", initial_capacity);
 
     return new_map;
@@ -189,14 +175,14 @@ bhm_create(const size_t initial_capacity) {
 Find and return the appropriate bucket for a given key,
 based on its hash and the capacity of the hashmap.
 */
-static HashPair *
+static HashPair **
 find_bucket(BHashMap *map, const void *key, const size_t keylen) {
     const uint32_t hash       = HASH(key, keylen),
                    bucket_idx = hash % map->capacity;
 
     DEBUG_PRINT("KEY: '%s', BUCKET IDX: %u\n", (char *) key, bucket_idx);
 
-    return map->buckets[bucket_idx];
+    return &map->buckets[bucket_idx];
 }
 
 /*
@@ -215,6 +201,21 @@ insert_pair(HashPair *pair, const void *key, const size_t keylen, const void *da
     pair->value = data;
 
     return true;
+}
+
+/* return a pointer to a new zeroed-out HashPair struct allocated on the heap, or NULL on failure */
+static inline HashPair *
+create_pair(void) {
+    HashPair *new = malloc(sizeof(HashPair));
+    if (!new) {
+        return NULL;
+    }
+
+    *new = (struct HashPair) {
+        0
+    };
+
+    return new;
 }
 
 /*
@@ -244,23 +245,6 @@ resize(BHashMap *map) {
         return false;
     }
 
-    /* allocate the new bucket pairs */
-    for (size_t i = 0; i < capacity_new; i++) {
-        buckets_new[i] = malloc(sizeof(HashPair));
-        if (!buckets_new[i]) {
-            DEBUG_PRINT("\tfailed allocating space for new HashPair\n");
-            for (size_t j = 0; j <= i; j++) {
-                free(buckets_new[j]);
-            }
-
-            free(buckets_new);
-            return false;
-        }
-
-        /* zero all fields of new struct*/
-        *(buckets_new[i]) = (struct HashPair) {0};
-    }
-
     map->buckets = buckets_new;
     map->capacity = capacity_new;
 
@@ -269,40 +253,36 @@ resize(BHashMap *map) {
     for (size_t idx_old = 0; idx_old < capacity_old; idx_old++) {
         HashPair *head = buckets_old[idx_old];
 
-        /* head bucket pair empty -- no need to rehash it / move it, just free its memory */
-        /* no need to traverse its list, as it doesn't have one */
-        if (head->key == NULL) {
-            free(head);
+        /* empty bucket slot */
+        if (head == NULL) {
             continue;
         }
 
         /* head bucket pair exists */
         while (head) {
             /* find new bucket position for this pair*/
-            HashPair *bucket_new = find_bucket(map, head->key, head->keylen);
+            HashPair **bucket_new = find_bucket(map, head->key, head->keylen);
 
-            /* head dest bucket empty */
-            /* insert current old head's data into new head dest bucket, free old head */
-            if (bucket_new->key == NULL) {
-                insert_pair(bucket_new, head->key, head->keylen, head->value);
+            /* dest bucket slot empty */
+            if (*bucket_new == NULL) {
+                *bucket_new = head;
 
                 HashPair *n = head->next;
-
-                free(head->key);
-                free(head);
-
+                head->next = NULL;
                 head = n;
+
                 continue;
             }
 
-            /* head dest bucket not empty, find last pair in ll, copy current old head over */
-            while (bucket_new->next != NULL) {
-                bucket_new = bucket_new->next;
+            /* dest bucket slot filled, find last pair in ll, copy current old head over */
+            HashPair *last_in_chain = *bucket_new;
+            while (last_in_chain->next != NULL) {
+                last_in_chain = last_in_chain->next;
             }
 
             HashPair *n = head->next;
 
-            bucket_new->next = head;
+            last_in_chain->next = head;
             head->next = NULL;
 
             head = n;
@@ -337,11 +317,16 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
     const uint64_t bench_start_nanos = start_benchmark();
     #endif
 
-    HashPair *bucket = find_bucket(map, key, keylen);
+    HashPair **bucket = find_bucket(map, key, keylen);
     
-    /* best case - given bucket completely empty - insert key-value pair */
-    if (bucket->key == NULL) {
-        if (!insert_pair(bucket, key, keylen, data)) {
+    /* best case - no bucket at idx */
+    if (*bucket == NULL) {
+        *bucket = create_pair();
+        if (!bucket) {
+            return false;
+        }
+
+        if (!insert_pair(*bucket, key, keylen, data)) {
             return false;
         }
 
@@ -359,7 +344,9 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
         return true;
     }
 
-    HashPair *head = bucket;
+    /* bucket present at idx */
+
+    HashPair *head = *bucket;
 
     while (head) {
         if (head->keylen == keylen && memcmp(key, head->key, keylen) == 0) {
@@ -376,7 +363,7 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
 
         if (head->next == NULL) {
             /* at end of linked list - allocate space for new pair and copy data over */
-            HashPair *new_pair = malloc(sizeof(HashPair));
+            HashPair *new_pair = create_pair();
             if (!new_pair) {
                 return false;
             }
@@ -386,7 +373,6 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
                 return false;
             }
 
-            new_pair->next = NULL;
             head->next = new_pair;
 
             map->pair_count += 1;
@@ -426,19 +412,21 @@ bhm_get(BHashMap *map, const void *key, const size_t keylen) {
     uint64_t bench_start_nanos = start_benchmark();
     #endif
 
-    HashPair *bucket = find_bucket(map, key, keylen);
+    HashPair **bucket = find_bucket(map, key, keylen);
 
     /* empty bucket, key definitely not in map */
-    if (!bucket->key) {
+    if (bucket == NULL) {
         return NULL;
     }
 
-    while (bucket) {
-        if (bucket->keylen == keylen && memcmp(key, bucket->key, keylen) == 0) {
-            return (void *) bucket->value;
+    HashPair *head = *bucket;
+
+    while (head) {
+        if (head->keylen == keylen && memcmp(key, head->key, keylen) == 0) {
+            return (void *) head->value;
         }
 
-        bucket = bucket->next;
+        head = head->next;
     }
 
     #ifdef BHM_DEBUG_BENCHMARK
@@ -474,15 +462,17 @@ the length of the key, and a pointer to the value.
 void
 bhm_iterate(const BHashMap *map, bhm_iterator_callback callback_function) {
     for (size_t i = 0; i < map->capacity; i++) {
-        HashPair *pair = map->buckets[i];
+        HashPair **bucket = &map->buckets[i];
 
-        if (pair->key == NULL) {
+        if (bucket == NULL) {
             continue;
         }
 
-        while (pair) {
-            callback_function(pair->key, pair->keylen, (void *) pair->value);
-            pair = pair->next;
+        HashPair *head = *bucket;
+
+        while (head) {
+            callback_function(head->key, head->keylen, (void *) head->value);
+            head = head->next;
         }
     }
 }
