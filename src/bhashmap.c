@@ -128,6 +128,10 @@ RETURN VALUE:
 */
 BHashMap *
 bhm_create(const size_t initial_capacity) {
+    #ifdef BHM_DEBUG_BENCHMARK
+    start_benchmark();
+    #endif
+
     BHashMap *new_map = malloc(sizeof(BHashMap));
 
     if (!new_map) {
@@ -146,6 +150,10 @@ bhm_create(const size_t initial_capacity) {
     }
 
     DEBUG_PRINT("Created hash map with capacity %lu.\n", initial_capacity);
+    #ifdef BHM_DEBUG_BENCHMARK
+    uint64_t time_elapsed = end_benchmark();
+    fprintf(stderr, "\e[1;93mcreate:\e[0m took %5lums.\n", time_elapsed);
+    #endif
 
     return new_map;
 }
@@ -429,6 +437,15 @@ those in the linked lists), as well as memory for all the copied keys.
 */
 void
 bhm_destroy(BHashMap *map) {
+    #ifdef BHM_DEBUG_BENCHMARK
+    start_benchmark();
+    #endif
+
     free_buckets(map->buckets, map->capacity);
     free(map);
+
+    #ifdef BHM_DEBUG_BENCHMARK
+    uint64_t time_elapsed = end_benchmark();
+    fprintf(stderr, "\e[1;93mdestroy:\e[0m took %5lums.\n", time_elapsed);
+    #endif
 }
