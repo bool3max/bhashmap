@@ -12,7 +12,7 @@ bool
 bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data); 
 
 void *
-bhm_get(BHashMap *map, const void *key, const size_t keylen); 
+bhm_get(const BHashMap *map, const void *key, const size_t keylen); 
 
 void
 bhm_destroy(BHashMap *map);

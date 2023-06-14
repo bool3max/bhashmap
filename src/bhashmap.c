@@ -402,7 +402,7 @@ RETURN VALUE:
     NON-NULL - appropriate data
 */
 void *
-bhm_get(BHashMap *map, const void *key, const size_t keylen) {
+bhm_get(const BHashMap *map, const void *key, const size_t keylen) {
     #ifdef BHM_DEBUG_BENCHMARK
     uint64_t bench_start_nanos = start_benchmark();
     #endif
