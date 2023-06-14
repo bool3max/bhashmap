@@ -457,13 +457,11 @@ the length of the key, and a pointer to the value.
 void
 bhm_iterate(const BHashMap *map, bhm_iterator_callback callback_function) {
     for (size_t i = 0; i < map->capacity; i++) {
-        HashPair **bucket = &map->buckets[i];
+        HashPair *head = map->buckets[i];
 
-        if (bucket == NULL) {
+        if (head == NULL) {
             continue;
         }
-
-        HashPair *head = *bucket;
 
         while (head) {
             callback_function(head->key, head->keylen, (void *) head->value);
