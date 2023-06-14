@@ -317,7 +317,7 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
     /* best case - no bucket at idx */
     if (*bucket == NULL) {
         *bucket = create_pair();
-        if (!bucket) {
+        if (!(*bucket)) {
             return false;
         }
 
