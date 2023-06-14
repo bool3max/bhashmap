@@ -176,7 +176,7 @@ Find and return the appropriate bucket for a given key,
 based on its hash and the capacity of the hashmap.
 */
 static HashPair **
-find_bucket(BHashMap *map, const void *key, const size_t keylen) {
+find_bucket(const BHashMap *map, const void *key, const size_t keylen) {
     const uint32_t hash       = HASH(key, keylen),
                    bucket_idx = hash % map->capacity;
 
