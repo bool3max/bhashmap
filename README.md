@@ -86,7 +86,8 @@ bool
 bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data); 
 ```
 
-Insert a new key-value pair into the map. A copy of the key is made and stored internally.
+Insert a new key-value pair into the map, or update the associated value of an existing key.
+When a new key-value pair is inerted, a copy of the key is made and stored internally.
 
 Returns `true` on success, and `false` on failure.
 
