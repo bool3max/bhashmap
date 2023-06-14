@@ -426,7 +426,7 @@ bhm_get(const BHashMap *map, const void *key, const size_t keylen) {
 
     #ifdef BHM_DEBUG_BENCHMARK
     uint64_t time_elapsed = end_benchmark(bench_start_nanos);
-    map->debug_benchmark_times.bhm_get_total_ms += time_elapsed;
+    ((BHashMap*) map)->debug_benchmark_times.bhm_get_total_ms += time_elapsed;
     #endif
 
     return NULL;
