@@ -25,10 +25,10 @@ and as such no print is performed.
 #define HASH(dataptr, datalen) murmur3_32(dataptr, datalen, 1u)
 
 typedef struct HashPair {
-    void *key;
     size_t keylen;
     const void *value;
     struct HashPair *next;
+    unsigned char key[];
 } HashPair;
 
 struct BHashMap {
@@ -50,7 +50,7 @@ static void
 free_buckets(HashPair **buckets, const size_t bucket_count);
 
 static inline HashPair *
-create_pair(void); 
+create_pair(const size_t keylen); 
 
 // Murmurhash3 implementation
 uint32_t
@@ -118,7 +118,7 @@ bhm_print_debug_stats(const BHashMap *map, FILE *stream) {
            overflow_bucket_count = 0; // buckets with more than one element in ll
 
     for (size_t i = 0; i < map->capacity; i++) {
-        if (map->buckets[i]->key == NULL) {
+        if (map->buckets[i] == NULL) {
             empty_bucket_count += 1;
             continue; // an empty bucket cannot be a chain
         }
@@ -190,13 +190,6 @@ Insert a key-value pair into a HashPair structure.
 */
 static inline bool
 insert_pair(HashPair *pair, const void *key, const size_t keylen, const void *data) {
-    pair->key = malloc(keylen);
-    pair->keylen = keylen;
-
-    if (!pair->key) {
-        return false;
-    }
-
     memcpy(pair->key, key, keylen);
     pair->value = data;
 
@@ -205,13 +198,14 @@ insert_pair(HashPair *pair, const void *key, const size_t keylen, const void *da
 
 /* return a pointer to a new zeroed-out HashPair struct allocated on the heap, or NULL on failure */
 static inline HashPair *
-create_pair(void) {
-    HashPair *new = malloc(sizeof(HashPair));
+create_pair(const size_t keylen) {
+    HashPair *new = malloc(sizeof(HashPair) + keylen);
     if (!new) {
         return NULL;
     }
 
     *new = (struct HashPair) {
+        .keylen = keylen,
         0
     };
 
@@ -316,7 +310,7 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
     
     /* best case - no bucket at idx */
     if (*bucket == NULL) {
-        *bucket = create_pair();
+        *bucket = create_pair(keylen);
         if (!(*bucket)) {
             return false;
         }
@@ -358,7 +352,7 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
 
         if (head->next == NULL) {
             /* at end of linked list - allocate space for new pair and copy data over */
-            HashPair *new_pair = create_pair();
+            HashPair *new_pair = create_pair(keylen);
             if (!new_pair) {
                 return false;
             }
@@ -440,7 +434,6 @@ free_buckets(HashPair **buckets, const size_t bucket_count) {
         while (head) {
             HashPair *n = head->next;
 
-            free(head->key);
             free(head);
 
             head = n;
