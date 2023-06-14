@@ -274,16 +274,11 @@ resize(BHashMap *map) {
                 continue;
             }
 
-            /* dest bucket slot filled, find last pair in ll, current old head */
-            HashPair *last_in_chain = *bucket_new;
-            while (last_in_chain->next != NULL) {
-                last_in_chain = last_in_chain->next;
-            }
-
+            /* dest bucket slot filled, prepend current old head to beginning of chain*/
+            
             HashPair *n = head->next;
-
-            last_in_chain->next = head;
-            head->next = NULL;
+            head->next = *bucket_new;
+            *bucket_new = head;
 
             head = n;
         }
