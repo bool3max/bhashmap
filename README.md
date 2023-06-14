@@ -68,16 +68,47 @@ If you built the benchmarks, they will be present as executables in the build di
 
 # API
 
-| **Function**           | **Arguments**                                                           | **Description**                                                                                                                                         | **Return value**                                                                            |
-|------------------------|-------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
-| `BHashMap* bhm_create` | `const size_t capacity`                                                 | Create a new BHashMap with the specified initial capacity.                                                                                              | A `BHashMap *` if the hash map was successfully created, `NULL` otherwise.                  |
-| `bool bhm_set`         | `BHashMap *map, const void *key, const size_t keylen, const void *data` | Insert a new key-value pair into the map, or update the value of an existing key.                                                                       | `true` if the pair was successfully inserted, `false` otherwise.                            |
-| `void *bhm_get`        | `const BHashMap *map, const void *key, const size_t keylen `            | Get the value of an existing key in the map.                                                                                                            | A `void *` pointer of the value of the given key if it exists in the map, `NULL` otherwise. |
-| `size_t bhm_count`     | `const BHashMap *map`                                                   | Get the number of key-value pairs currently in the map.                                                                                                           | A `size_t` integer.                                                                         |
-| `void bhm_iterate`     | `const BHashMap *map, bhm_iterator_callback callback_function`          | For each key-value pair in the map, call the passed in `callback_function`, passing it the pointer to the key, and the pointer of its associated value. | `void`                                                                                      |
-| `void bhm_destroy`     | `BHashMap *`                                                            | Free all resources occupied by the BHashMap structure. Attempting to access the map afterwards is considered an error.                                  | `void`                                                                                      |* ### `bhm_create()` - create a new HashMap
+### **`bhm_create`**
+
+```c
+BHashMap *
+bhm_create(const size_t capacity);
+```
+
+Create a new BHashMap with the specified initial capacity. 
+
+Returns a `BHashMap *` on success, and `NULL` on failure.
+
+### **`bhm_set`**
+
+```c
+bool
+bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data); 
+```
+
+Insert a new key-value pair into the map. A copy of the key is made and stored internally.
+
+Returns `true` on success, and `false` on failure.
+
+### **`bhm_get`**
+
+```c
+void *
+bhm_get(const BHashMap *map, const void *key, const size_t keylen); 
+```
+
+Retrieve the associated value of a key. 
+
+Returns a pointer to the value on success, and `NULL` on failure.
 
 ### **`bhm_iterate`**
+
+```c
+void
+bhm_iterate(const BHashMap *map, bhm_iterator_callback callback_function); 
+```
+
+For each key-value pair in the map, call the passed in callback function, passing it a pointer to the key, and a pointer to its associated value.
 
 The `bhm_iterator_callback` type is defined as follows: 
 
@@ -87,6 +118,33 @@ typedef void (*bhm_iterator_callback)(const void *key, const size_t keylen, void
 
 Note the **`const`** next to the `key` parameter - the key is internal to the data structure, and should not be modified once set.
 
+### **`bhm_count`**
+
+```c
+size_t
+bhm_count(const BHashMap *map); 
+```
+
+Return the count of key-value pairs currently in the map.
+
+### **`bhm_destroy`**
+
+```c
+void
+bhm_destroy(BHashMap *map);
+```
+
+Free all resources occupied by the `BHashMap` data structure. Attempting to access the map afterwards is considered and error.
+
+### **`bhm_print_debug_stats`**
+
+```c
+void
+bhm_print_debug_stats(const BHashMap *map, FILE *stream);
+```
+
+Log various statistics concerning the internals of the hash map to the specified `FILE *` stream.
+
 
 # Internals & design decisions
 
@@ -95,6 +153,8 @@ Note the **`const`** next to the `key` parameter - the key is internal to the da
 * When storing key-value pairs in the hash map, the implementation **creates and stores copies of the keys**. This is a deliberate design decision that imposes additional memory and runtime overhead<sup>1</sup>, but allows for more freedom for the API consumer - they are free to mess with the memory of the key once it has been inserted.
 
 * The maximum load factor after whose limit the hash map is resized, as well as the factor by which the table is resized are both static.
+
+* The default hash function for computing the hash of the keys used by the library is [MurmurHash3](https://en.wikipedia.org/wiki/MurmurHash#MurmurHash3).
 
 <sup>1</sup> Allocating memory for, copying, as well as freeing the memory of copies of the keys all take additional time and memory.
 
