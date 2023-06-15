@@ -4,9 +4,10 @@
 
 typedef struct BHashMap BHashMap;
 typedef void (*bhm_iterator_callback)(const void *key, const size_t keylen, void *value);
+typedef uint32_t (*bhm_hash_function)(const void *data, size_t len);
 
 BHashMap *
-bhm_create(const size_t capacity);
+bhm_create(const size_t capacity, bhm_hash_function hashfunc);
 
 bool
 bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data); 
