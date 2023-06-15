@@ -8,7 +8,7 @@
 #include "bhashmap.h"
 
 #define MAXWORDLEN 50
-#define ITERATIONS 32
+#define ITERATIONS 1
 
 int main(void) {
     char (*words)[MAXWORDLEN] = malloc(WORDSTXT_COUNT * MAXWORDLEN);
@@ -27,18 +27,19 @@ int main(void) {
     for (size_t j = 0; j < ITERATIONS; j++) {
         clock_gettime(CLOCK_MONOTONIC_RAW, &time_start);
 
-        BHashMap *map = bhm_create(32);
+        BHashMap *map = bhm_create(32, NULL);
         if (!map) {
             fprintf(stderr, "Error creating hash table.\n");
             exit(1);
         }
         for (size_t i = 0; i < WORDSTXT_COUNT; i++) {
-            if (!bhm_set(map, words[i], strlen(words[i]) + 1, words[i])) {
+            if (!bhm_set(map, words[i], strlen(words[i]), words[i])) {
                 fprintf(stderr, "Error setting key.\n");
                 bhm_destroy(map);
                 exit(1);
             }
         }
+
         bhm_destroy(map);
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &time_end);

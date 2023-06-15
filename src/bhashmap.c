@@ -33,6 +33,8 @@ typedef struct HashPair {
 } HashPair;
 
 struct BHashMap {
+    bhm_hash_function hashfunc;
+
     size_t capacity,
            pair_count;
 
@@ -52,6 +54,10 @@ free_buckets(HashPair **buckets, const size_t bucket_count);
 
 static inline HashPair *
 create_pair(const size_t keylen); 
+
+static uint32_t murmur3_32_wrapper(const void *data, size_t len) {
+    return murmur3_32(data, len, 1u);
+}
 
 static inline double
 get_load_factor(const BHashMap *map) {
@@ -92,7 +98,7 @@ RETURN VALUE:
     On failure, return NULL.
 */
 BHashMap *
-bhm_create(const size_t initial_capacity) {
+bhm_create(const size_t initial_capacity, bhm_hash_function hashfunc) {
     BHashMap *new_map = malloc(sizeof(BHashMap));
 
     if (!new_map) {
@@ -100,6 +106,7 @@ bhm_create(const size_t initial_capacity) {
     }
 
     *new_map = (BHashMap) {
+        .hashfunc = hashfunc ? hashfunc : murmur3_32_wrapper,
         .capacity = initial_capacity,
         .pair_count = 0,
         .buckets = calloc(initial_capacity, sizeof(HashPair *)),
@@ -126,7 +133,7 @@ based on its hash and the capacity of the hashmap.
 */
 static HashPair **
 find_bucket(const BHashMap *map, const void *key, const size_t keylen) {
-    const uint32_t hash       = HASH(key, keylen),
+    const uint32_t hash       = map->hashfunc(key, keylen),
                    bucket_idx = hash % map->capacity;
 
     DEBUG_PRINT("KEY: '%s', BUCKET IDX: %u\n", (char *) key, bucket_idx);

@@ -7,7 +7,7 @@
 
 #include "bhashmap.h"
 
-#define ITERATIONS 32
+#define ITERATIONS 1
 
 int main(void) {
     struct timespec time_start, time_end;
@@ -16,7 +16,7 @@ int main(void) {
     for (size_t j = 0; j < ITERATIONS; j++) {
         clock_gettime(CLOCK_MONOTONIC_RAW, &time_start);
 
-        BHashMap *map = bhm_create(32);
+        BHashMap *map = bhm_create(32, NULL);
         if (!map) {
             fprintf(stderr, "error\n");
             return EXIT_FAILURE;
