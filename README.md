@@ -102,6 +102,17 @@ Retrieve the associated value of a key.
 
 Returns a pointer to the value on success, and `NULL` on failure.
 
+### **`bhm_remove`**
+
+```c
+bool
+bhm_remove(BHashMap *map, const void *key, const size_t keylen); 
+```
+
+Remove a key from the map.
+
+Returns `true` if the key was found and removed successfully, and `false` if the wasn't found in the map.
+
 ### **`bhm_iterate`**
 
 ```c

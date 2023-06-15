@@ -426,6 +426,43 @@ bhm_get(const BHashMap *map, const void *key, const size_t keylen) {
     return NULL;
 }
 
+/* remove a key from the hash map */
+bool
+bhm_remove(BHashMap *map, const void *key, const size_t keylen) {
+    HashPair **bucket = find_bucket(map, key, keylen);
+
+    /* head bucket empty - key definitely not in map */
+    if (bucket == NULL) {
+        return false;
+    }
+
+    /* head bucket has at least one pair */
+    HashPair *head = *bucket;
+
+    /* if it's the ONLY pair and it's the right key */
+    if (head->next == NULL && head->keylen == keylen && memcmp(head->key, key, keylen) == 0) {
+        free(head);
+        *bucket = NULL;
+        return true;
+    }
+
+    while (head && head->next) {
+        HashPair *next = head->next;
+
+        if (next->keylen == keylen && memcmp(key, next->key, keylen) == 0) {
+            HashPair *nn = next->next;
+            free(next);
+            head->next = nn;
+
+            return true;
+        }
+
+        head = next;
+    }
+
+    return false;
+}
+
 static void
 free_buckets(HashPair **buckets, const size_t bucket_count) {
     for (size_t i = 0; i < bucket_count; i++)  {
