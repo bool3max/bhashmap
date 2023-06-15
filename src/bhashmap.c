@@ -55,7 +55,8 @@ free_buckets(HashPair **buckets, const size_t bucket_count);
 static inline HashPair *
 create_pair(const size_t keylen); 
 
-static uint32_t murmur3_32_wrapper(const void *data, size_t len) {
+static uint32_t
+murmur3_32_wrapper(const void *data, size_t len) {
     return murmur3_32(data, len, 1u);
 }
 
@@ -152,7 +153,9 @@ insert_pair(HashPair *pair, const void *key, const size_t keylen, const void *da
     return true;
 }
 
-/* return a pointer to a new zeroed-out HashPair struct allocated on the heap, or NULL on failure */
+/* 
+Return a pointer to a new zeroed-out HashPair struct allocated on the heap, or NULL on failure.
+*/
 static inline HashPair *
 create_pair(const size_t keylen) {
     HashPair *new = malloc(sizeof(HashPair) + keylen);
@@ -169,13 +172,13 @@ create_pair(const size_t keylen) {
 }
 
 /*
-    Resize the given hash map by the constant resize factor.
+Resize the given hash map by the constant resize factor.
 
-    On failure, the hash map is not resized and remains just as it was before the call.
-    
-    RETURN VALUE:
-        On success, true is returned.
-        On failure, false is returned.
+On failure, the hash map is not resized and remains just as it was before the call.
+
+RETURN VALUE:
+    On success, true is returned.
+    On failure, false is returned.
 */
 static bool
 resize(BHashMap *map) {
@@ -198,7 +201,7 @@ resize(BHashMap *map) {
     map->buckets = buckets_new;
     map->capacity = capacity_new;
 
-    // rehash every HashPair in the old table
+    /* rehash every key-value pair from the old table */
 
     for (size_t idx_old = 0; idx_old < capacity_old; idx_old++) {
         HashPair *head = buckets_old[idx_old];
