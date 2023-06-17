@@ -72,10 +72,20 @@ If you built the benchmarks, they will be present as executables in the build di
 
 ```c
 BHashMap *
-bhm_create(const size_t capacity);
+bhm_create(const size_t capacity, bhm_hash_function hashfunc);
 ```
 
-Create a new BHashMap with the specified initial capacity. 
+Create a new BHashMap with the specified initial capacity. The caller may provide a custom hash function that will be used for the duration
+of the map's lifetime via the `hashfunc` parameter, or pass in `NULL` to use a default hash function.
+
+The **`bhm_hash_function`** type is defined as follows: 
+
+```c
+typedef uint32_t (*bhm_hash_function)(const void *data, size_t len);
+```
+
+If the hash function one wants to use does not conform to this prototype, one may then define a wrapper that *does*, and pass that
+wrapper to `bhm_create`.
 
 Returns a `BHashMap *` on success, and `NULL` on failure.
 
@@ -101,6 +111,17 @@ bhm_get(const BHashMap *map, const void *key, const size_t keylen);
 Retrieve the associated value of a key. 
 
 Returns a pointer to the value on success, and `NULL` on failure.
+
+### **`bhm_remove`**
+
+```c
+bool
+bhm_remove(BHashMap *map, const void *key, const size_t keylen); 
+```
+
+Remove a key from the map.
+
+Returns `true` if the key was found and removed successfully, and `false` if the wasn't found in the map.
 
 ### **`bhm_iterate`**
 

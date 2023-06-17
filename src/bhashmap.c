@@ -6,7 +6,10 @@
 #include <sys/types.h>
 
 #include "bhashmap.h"
+#include "murmurhash3.h"
 #include "benchmark.h"
+
+#define HASH(dataptr, datalen) murmur3_32(dataptr, datalen, 1u)
 
 #define BHM_LOAD_FACTOR_LIMIT 0.75
 #define BHM_RESIZE_FACTOR 2
@@ -22,8 +25,6 @@ and as such no print is performed.
 #define DEBUG_PRINT(fmt, ...)
 #endif
 
-#define HASH(dataptr, datalen) murmur3_32(dataptr, datalen, 1u)
-
 typedef struct HashPair {
     size_t keylen;
     const void *value;
@@ -32,6 +33,8 @@ typedef struct HashPair {
 } HashPair;
 
 struct BHashMap {
+    bhm_hash_function hashfunc;
+
     size_t capacity,
            pair_count;
 
@@ -52,56 +55,9 @@ free_buckets(HashPair **buckets, const size_t bucket_count);
 static inline HashPair *
 create_pair(const size_t keylen); 
 
-// Murmurhash3 implementation
-uint32_t
-murmur3_32(const char *key, uint32_t len, uint32_t seed) {
-    static const uint32_t c1 = 0xcc9e2d51;
-    static const uint32_t c2 = 0x1b873593;
-    static const uint32_t r1 = 15;
-    static const uint32_t r2 = 13;
-    static const uint32_t m = 5;
-    static const uint32_t n = 0xe6546b64;
-
-    uint32_t hash = seed;
-
-    const int nblocks = len / 4;
-    const uint32_t *blocks = (const uint32_t *) key;
-    int i;
-    for (i = 0; i < nblocks; i++) {
-        uint32_t k = blocks[i];
-        k *= c1;
-        k = (k << r1) | (k >> (32 - r1));
-        k *= c2;
-
-        hash ^= k;
-        hash = ((hash << r2) | (hash >> (32 - r2))) * m + n;
-    }
-
-    const uint8_t *tail = (const uint8_t *) (key + nblocks * 4);
-    uint32_t k1 = 0;
-
-    switch (len & 3) {
-    case 3:
-        k1 ^= tail[2] << 16;
-    case 2:
-        k1 ^= tail[1] << 8;
-    case 1:
-        k1 ^= tail[0];
-
-        k1 *= c1;
-        k1 = (k1 << r1) | (k1 >> (32 - r1));
-        k1 *= c2;
-        hash ^= k1;
-    }
-
-    hash ^= len;
-    hash ^= (hash >> 16);
-    hash *= 0x85ebca6b;
-    hash ^= (hash >> 13);
-    hash *= 0xc2b2ae35;
-    hash ^= (hash >> 16);
-
-    return hash;
+static uint32_t
+murmur3_32_wrapper(const void *data, size_t len) {
+    return murmur3_32(data, len, 1u);
 }
 
 static inline double
@@ -143,7 +99,7 @@ RETURN VALUE:
     On failure, return NULL.
 */
 BHashMap *
-bhm_create(const size_t initial_capacity) {
+bhm_create(const size_t initial_capacity, bhm_hash_function hashfunc) {
     BHashMap *new_map = malloc(sizeof(BHashMap));
 
     if (!new_map) {
@@ -151,6 +107,7 @@ bhm_create(const size_t initial_capacity) {
     }
 
     *new_map = (BHashMap) {
+        .hashfunc = hashfunc ? hashfunc : murmur3_32_wrapper,
         .capacity = initial_capacity,
         .pair_count = 0,
         .buckets = calloc(initial_capacity, sizeof(HashPair *)),
@@ -177,7 +134,7 @@ based on its hash and the capacity of the hashmap.
 */
 static HashPair **
 find_bucket(const BHashMap *map, const void *key, const size_t keylen) {
-    const uint32_t hash       = HASH(key, keylen),
+    const uint32_t hash       = map->hashfunc(key, keylen),
                    bucket_idx = hash % map->capacity;
 
     DEBUG_PRINT("KEY: '%s', BUCKET IDX: %u\n", (char *) key, bucket_idx);
@@ -196,7 +153,9 @@ insert_pair(HashPair *pair, const void *key, const size_t keylen, const void *da
     return true;
 }
 
-/* return a pointer to a new zeroed-out HashPair struct allocated on the heap, or NULL on failure */
+/* 
+Return a pointer to a new zeroed-out HashPair struct allocated on the heap, or NULL on failure.
+*/
 static inline HashPair *
 create_pair(const size_t keylen) {
     HashPair *new = malloc(sizeof(HashPair) + keylen);
@@ -213,13 +172,13 @@ create_pair(const size_t keylen) {
 }
 
 /*
-    Resize the given hash map by the constant resize factor.
+Resize the given hash map by the constant resize factor.
 
-    On failure, the hash map is not resized and remains just as it was before the call.
-    
-    RETURN VALUE:
-        On success, true is returned.
-        On failure, false is returned.
+On failure, the hash map is not resized and remains just as it was before the call.
+
+RETURN VALUE:
+    On success, true is returned.
+    On failure, false is returned.
 */
 static bool
 resize(BHashMap *map) {
@@ -242,7 +201,7 @@ resize(BHashMap *map) {
     map->buckets = buckets_new;
     map->capacity = capacity_new;
 
-    // rehash every HashPair in the old table
+    /* rehash every key-value pair from the old table */
 
     for (size_t idx_old = 0; idx_old < capacity_old; idx_old++) {
         HashPair *head = buckets_old[idx_old];
@@ -424,6 +383,43 @@ bhm_get(const BHashMap *map, const void *key, const size_t keylen) {
     #endif
 
     return NULL;
+}
+
+/* remove a key from the hash map */
+bool
+bhm_remove(BHashMap *map, const void *key, const size_t keylen) {
+    HashPair **bucket = find_bucket(map, key, keylen);
+
+    /* head bucket empty - key definitely not in map */
+    if (bucket == NULL) {
+        return false;
+    }
+
+    /* head bucket has at least one pair */
+    HashPair *head = *bucket;
+
+    /* if it's the ONLY pair and it's the right key */
+    if (head->next == NULL && head->keylen == keylen && memcmp(head->key, key, keylen) == 0) {
+        free(head);
+        *bucket = NULL;
+        return true;
+    }
+
+    while (head && head->next) {
+        HashPair *next = head->next;
+
+        if (next->keylen == keylen && memcmp(key, next->key, keylen) == 0) {
+            HashPair *nn = next->next;
+            free(next);
+            head->next = nn;
+
+            return true;
+        }
+
+        head = next;
+    }
+
+    return false;
 }
 
 static void
