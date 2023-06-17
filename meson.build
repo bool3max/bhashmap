@@ -27,6 +27,8 @@ lib_main = library(
     install: true
 )
 
+install_headers('src/include/bhashmap.h')
+
 if get_option('build_benchmarks')
     word_linecount = run_command('bash', '-c', 'wc -l $MESON_SOURCE_ROOT/words.txt | cut -f 1 -d " "', check: true).stdout().strip()
     executable(
