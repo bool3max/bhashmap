@@ -1,6 +1,6 @@
 # bhashmap
 
-A general hash table library implementation written in C11. Initially developed with the purpose
+A general-purpose hash table library implementation written in C11. Initially developed with the purpose
 of helping better understand the ins-and-outs of the hash table data structure, it has since evolved
 into a very solid and usable library.
 
