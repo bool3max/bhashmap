@@ -72,13 +72,25 @@ If you built the benchmarks, they will be present as executables in the build di
 
 ```c
 BHashMap *
-bhm_create(const size_t capacity, bhm_hash_function hashfunc);
+bhm_create(const size_t capacity, const BHashMapConfig *user_config);
 ```
 
-Create a new BHashMap with the specified initial capacity. The caller may provide a custom hash function that will be used for the duration
-of the map's lifetime via the `hashfunc` parameter, or pass in `NULL` to use a default hash function.
+Create a new BHashMap with the specified initial capacity and configuration. If `capacity` is 0, a default value is used instead. 
 
-The **`bhm_hash_function`** type is defined as follows: 
+The `BHashMapConfig` type is defined as follows, and allows the caller to supply additional configuration options to be used in the new hash map instance:
+
+```c
+typedef struct BHashMapConfig {
+    double max_load_factor;
+    size_t resize_growth_factor;
+    bhm_hash_function hashfunc;
+} BHashMapConfig;
+```
+
+If any of the fields of the configuration struct is `0`, a default value is used in its place. 
+If `user_config` is NULL, default values are used for all of the configuration options.
+
+The **`bhm_hash_function`** type is defined as follows, and allows the caller to use a custom hash function throughout the lifetime of hash map instance:
 
 ```c
 typedef uint32_t (*bhm_hash_function)(const void *data, size_t len);
