@@ -289,6 +289,8 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
         }
 
         if (!insert_pair(*bucket, key, keylen, data)) {
+            free(*bucket);
+            *bucket = NULL;
             return false;
         }
 
