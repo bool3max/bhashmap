@@ -186,8 +186,6 @@ Log various statistics concerning the internals of the hash map to the specified
 
 * When storing key-value pairs in the hash map, the implementation **creates and stores copies of the keys**. This is a deliberate design decision that imposes additional memory and runtime overhead<sup>1</sup>, but allows for more freedom for the API consumer - they are free to mess with the memory of the key once it has been inserted.
 
-* The maximum load factor after whose limit the hash map is resized, as well as the factor by which the table is resized are both static.
-
 * The default hash function for computing the hash of the keys used by the library is [MurmurHash3](https://en.wikipedia.org/wiki/MurmurHash#MurmurHash3).
 
 <sup>1</sup> Allocating memory for, copying, as well as freeing the memory of copies of the keys all take additional time and memory.
