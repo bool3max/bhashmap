@@ -1,6 +1,6 @@
 # bhashmap
 
-A general hash table library implementation written in C11. Initially developed with the purpose
+A general-purpose hash table library implementation written in C11. Initially developed with the purpose
 of helping better understand the ins-and-outs of the hash table data structure, it has since evolved
 into a very solid and usable library.
 
@@ -72,13 +72,25 @@ If you built the benchmarks, they will be present as executables in the build di
 
 ```c
 BHashMap *
-bhm_create(const size_t capacity, bhm_hash_function hashfunc);
+bhm_create(const size_t capacity, const BHashMapConfig *user_config);
 ```
 
-Create a new BHashMap with the specified initial capacity. The caller may provide a custom hash function that will be used for the duration
-of the map's lifetime via the `hashfunc` parameter, or pass in `NULL` to use a default hash function.
+Create a new BHashMap with the specified initial capacity and configuration. If `capacity` is 0, a default value is used instead. 
 
-The **`bhm_hash_function`** type is defined as follows: 
+The `BHashMapConfig` type is defined as follows, and allows the caller to supply additional configuration options to be used in the new hash map instance:
+
+```c
+typedef struct BHashMapConfig {
+    double max_load_factor;
+    size_t resize_growth_factor;
+    bhm_hash_function hashfunc;
+} BHashMapConfig;
+```
+
+If any of the fields of the configuration struct is `0`, a default value is used in its place. 
+If `user_config` is NULL, default values are used for all of the configuration options.
+
+The **`bhm_hash_function`** type is defined as follows, and allows the caller to use a custom hash function throughout the lifetime of hash map instance:
 
 ```c
 typedef uint32_t (*bhm_hash_function)(const void *data, size_t len);
@@ -149,6 +161,16 @@ bhm_count(const BHashMap *map);
 
 Return the count of key-value pairs currently in the map.
 
+### **`bhm_get_config`**
+
+```c
+BHashMapConfig
+bhm_get_config(const BHashMap *map);
+```
+
+Return the configuration instance currently in use by the specified hash map.
+NOTE: This function returns an actual `struct` instance, *not* a pointer.
+
 ### **`bhm_destroy`**
 
 ```c
@@ -173,8 +195,6 @@ Log various statistics concerning the internals of the hash map to the specified
 * The implementation handles collisions via the [separate chaining](https://en.wikipedia.org/wiki/Hash_table#Separate_chaining) technique.
 
 * When storing key-value pairs in the hash map, the implementation **creates and stores copies of the keys**. This is a deliberate design decision that imposes additional memory and runtime overhead<sup>1</sup>, but allows for more freedom for the API consumer - they are free to mess with the memory of the key once it has been inserted.
-
-* The maximum load factor after whose limit the hash map is resized, as well as the factor by which the table is resized are both static.
 
 * The default hash function for computing the hash of the keys used by the library is [MurmurHash3](https://en.wikipedia.org/wiki/MurmurHash#MurmurHash3).
 

@@ -9,10 +9,9 @@
 #include "murmurhash3.h"
 #include "benchmark.h"
 
-#define HASH(dataptr, datalen) murmur3_32(dataptr, datalen, 1u)
-
-#define BHM_LOAD_FACTOR_LIMIT 0.75
-#define BHM_RESIZE_FACTOR 2
+#define BHM_DEFAULT_INITIAL_CAPCACITY 32
+#define BHM_DEFAULT_MAX_LOAD_FACTOR 0.75
+#define BHM_DEFAULT_RESIZE_GROWTH_FACTOR 2
 
 /*
 The DEBUG_PRINT macro only expands if BHM_DEBUG is defined. Otherwise, it expands to nothing
@@ -33,7 +32,7 @@ typedef struct HashPair {
 } HashPair;
 
 struct BHashMap {
-    bhm_hash_function hashfunc;
+    BHashMapConfig config;
 
     size_t capacity,
            pair_count;
@@ -49,16 +48,22 @@ struct BHashMap {
     #endif
 };
 
+static uint32_t
+murmur3_32_wrapper(const void *data, size_t len) {
+    return murmur3_32(data, len, 1u);
+}
+
+static const BHashMapConfig DEFAULT_HASHMAP_CONFIG = (BHashMapConfig) {
+    .hashfunc = murmur3_32_wrapper,
+    .max_load_factor = BHM_DEFAULT_MAX_LOAD_FACTOR ,
+    .resize_growth_factor = BHM_DEFAULT_RESIZE_GROWTH_FACTOR
+};
+
 static void
 free_buckets(HashPair **buckets, const size_t bucket_count);
 
 static inline HashPair *
 create_pair(const size_t keylen); 
-
-static uint32_t
-murmur3_32_wrapper(const void *data, size_t len) {
-    return murmur3_32(data, len, 1u);
-}
 
 static inline double
 get_load_factor(const BHashMap *map) {
@@ -99,24 +104,35 @@ RETURN VALUE:
     On failure, return NULL.
 */
 BHashMap *
-bhm_create(const size_t initial_capacity, bhm_hash_function hashfunc) {
+bhm_create(const size_t initial_capacity, const BHashMapConfig *config_user) {
     BHashMap *new_map = malloc(sizeof(BHashMap));
 
     if (!new_map) {
         return NULL;
     }
 
+    const size_t capacity = initial_capacity != 0 ? initial_capacity : BHM_DEFAULT_INITIAL_CAPCACITY;
+
     *new_map = (BHashMap) {
-        .hashfunc = hashfunc ? hashfunc : murmur3_32_wrapper,
-        .capacity = initial_capacity,
+        .capacity = capacity,
         .pair_count = 0,
-        .buckets = calloc(initial_capacity, sizeof(HashPair *)),
+        .buckets = calloc(capacity, sizeof(HashPair *)),
         #ifdef BHM_DEBUG_BENCHMARK
         .debug_benchmark_times = (struct _debugBenchmarkTimes) {
             0, 0, 0
         }
         #endif
     };
+
+    if (config_user == NULL) {
+        new_map->config = DEFAULT_HASHMAP_CONFIG;
+    } else {
+        new_map->config = (BHashMapConfig) {
+            .hashfunc = config_user->hashfunc != NULL ? config_user->hashfunc : murmur3_32_wrapper,
+            .max_load_factor = config_user->max_load_factor > 0 ? config_user->max_load_factor : BHM_DEFAULT_MAX_LOAD_FACTOR,
+            .resize_growth_factor = config_user->resize_growth_factor > 0 ? config_user->resize_growth_factor : BHM_DEFAULT_RESIZE_GROWTH_FACTOR
+        };
+    }
 
     if (!new_map->buckets) {
         free(new_map);
@@ -134,7 +150,7 @@ based on its hash and the capacity of the hashmap.
 */
 static HashPair **
 find_bucket(const BHashMap *map, const void *key, const size_t keylen) {
-    const uint32_t hash       = map->hashfunc(key, keylen),
+    const uint32_t hash       = map->config.hashfunc(key, keylen),
                    bucket_idx = hash % map->capacity;
 
     DEBUG_PRINT("KEY: '%s', BUCKET IDX: %u\n", (char *) key, bucket_idx);
@@ -145,12 +161,10 @@ find_bucket(const BHashMap *map, const void *key, const size_t keylen) {
 /*
 Insert a key-value pair into a HashPair structure.
 */
-static inline bool
+static inline void
 insert_pair(HashPair *pair, const void *key, const size_t keylen, const void *data) {
     memcpy(pair->key, key, keylen);
     pair->value = data;
-
-    return true;
 }
 
 /* 
@@ -187,7 +201,7 @@ resize(BHashMap *map) {
     uint64_t bench_start_nanos = start_benchmark();
     #endif
 
-    size_t capacity_new = map->capacity * BHM_RESIZE_FACTOR,
+    size_t capacity_new = map->capacity * map->config.resize_growth_factor,
            capacity_old = map->capacity;
 
     HashPair **buckets_new = calloc(capacity_new, sizeof(HashPair *)),
@@ -274,9 +288,7 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
             return false;
         }
 
-        if (!insert_pair(*bucket, key, keylen, data)) {
-            return false;
-        }
+        insert_pair(*bucket, key, keylen, data);
 
         map->pair_count += 1;
 
@@ -285,7 +297,7 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
         map->debug_benchmark_times.bhm_set_total_ms += time_elapsed;
         #endif
 
-        if (get_load_factor(map) >= BHM_LOAD_FACTOR_LIMIT) {
+        if (get_load_factor(map) >= map->config.max_load_factor) {
             resize(map);
         }
 
@@ -316,10 +328,7 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
                 return false;
             }
 
-            if (!insert_pair(new_pair, key, keylen, data)) {
-                free(new_pair);
-                return false;
-            }
+            insert_pair(new_pair, key, keylen, data);
 
             head->next = new_pair;
 
@@ -330,7 +339,7 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
             map->debug_benchmark_times.bhm_set_total_ms += time_elapsed;
             #endif
 
-            if (get_load_factor(map) >= BHM_LOAD_FACTOR_LIMIT) {
+            if (get_load_factor(map) >= map->config.max_load_factor) {
                 resize(map);
             }
 
@@ -465,6 +474,13 @@ Return the count of key-value pairs in the hash map.
 size_t
 bhm_count(const BHashMap *map) {
     return map->pair_count;
+}
+
+/* Return the configuration structure currently used by the specified BHashMap instance. 
+   NOTE: This functions returns a copy of the configuration strucutre, _not_ a pointer to it. 
+*/
+BHashMapConfig bhm_get_config(const BHashMap *map) {
+    return map->config;
 }
 
 /*
