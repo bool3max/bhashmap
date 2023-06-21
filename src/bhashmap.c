@@ -485,6 +485,13 @@ bhm_count(const BHashMap *map) {
     return map->pair_count;
 }
 
+/* Return the configuration structure currently used by the specified BHashMap instance. 
+   NOTE: This functions returns a copy of the configuration strucutre, _not_ a pointer to it. 
+*/
+BHashMapConfig bhm_get_config(const BHashMap *map) {
+    return map->config;
+}
+
 /*
 Free all resources occupied by the hash map. This includes the memory of the main BHashMap
 structure, the memory for all the hash pairs in the structure (those at the 'root' as well as 

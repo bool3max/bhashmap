@@ -35,3 +35,6 @@ bhm_iterate(const BHashMap *map, bhm_iterator_callback callback_function);
 
 size_t
 bhm_count(const BHashMap *map); 
+
+BHashMapConfig
+bhm_get_config(const BHashMap *map);
