@@ -111,10 +111,12 @@ bhm_create(const size_t initial_capacity, const BHashMapConfig *config_user) {
         return NULL;
     }
 
+    const size_t capacity = initial_capacity != 0 ? initial_capacity : BHM_DEFAULT_INITIAL_CAPCACITY;
+
     *new_map = (BHashMap) {
-        .capacity = initial_capacity != 0 ? initial_capacity : BHM_DEFAULT_INITIAL_CAPCACITY,
+        .capacity = capacity,
         .pair_count = 0,
-        .buckets = calloc(initial_capacity, sizeof(HashPair *)),
+        .buckets = calloc(capacity, sizeof(HashPair *)),
         #ifdef BHM_DEBUG_BENCHMARK
         .debug_benchmark_times = (struct _debugBenchmarkTimes) {
             0, 0, 0
