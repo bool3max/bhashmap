@@ -161,12 +161,10 @@ find_bucket(const BHashMap *map, const void *key, const size_t keylen) {
 /*
 Insert a key-value pair into a HashPair structure.
 */
-static inline bool
+static inline void
 insert_pair(HashPair *pair, const void *key, const size_t keylen, const void *data) {
     memcpy(pair->key, key, keylen);
     pair->value = data;
-
-    return true;
 }
 
 /* 
@@ -290,11 +288,7 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
             return false;
         }
 
-        if (!insert_pair(*bucket, key, keylen, data)) {
-            free(*bucket);
-            *bucket = NULL;
-            return false;
-        }
+        insert_pair(*bucket, key, keylen, data);
 
         map->pair_count += 1;
 
@@ -334,10 +328,7 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data) {
                 return false;
             }
 
-            if (!insert_pair(new_pair, key, keylen, data)) {
-                free(new_pair);
-                return false;
-            }
+            insert_pair(new_pair, key, keylen, data);
 
             head->next = new_pair;
 
