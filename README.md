@@ -161,6 +161,16 @@ bhm_count(const BHashMap *map);
 
 Return the count of key-value pairs currently in the map.
 
+### **`bhm_get_config`**
+
+```c
+BHashMapConfig
+bhm_get_config(const BHashMap *map);
+```
+
+Return the configuration instance currently in use by the specified hash map.
+NOTE: This function returns an actual `struct` instance, *not* a pointer.
+
 ### **`bhm_destroy`**
 
 ```c
