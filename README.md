@@ -88,7 +88,12 @@ typedef struct BHashMapConfig {
 ```
 
 If any of the fields of the configuration struct is `0`, a default value is used in its place. 
-If `user_config` is NULL, default values are used for all of the configuration options.
+If `user_config` is NULL, default values are used for all of the configuration options. Thus, if one wants to create
+a hash map with a fully default set of configuration options, one should use the following call:
+
+```c
+bhm_create(0, NULL);
+```
 
 The **`bhm_hash_function`** type is defined as follows, and allows the caller to use a custom hash function throughout the lifetime of hash map instance:
 
@@ -98,6 +103,7 @@ typedef uint32_t (*bhm_hash_function)(const void *data, size_t len);
 
 If the hash function one wants to use does not conform to this prototype, one may then define a wrapper that *does*, and pass that
 wrapper to `bhm_create`.
+
 
 Returns a `BHashMap *` on success, and `NULL` on failure.
 
