@@ -30,22 +30,10 @@ lib_main = library(
 install_headers('src/include/bhashmap.h')
 
 if get_option('build_benchmarks')
-    word_linecount = run_command('bash', '-c', 'wc -l $MESON_SOURCE_ROOT/words.txt | cut -f 1 -d " "', check: true).stdout().strip()
     executable(
         'bench_words400k',
-        'src/benchmarks/benchmark_words400k.c',
-        include_directories: incdir,
-        link_with: lib_main,
-        c_args: [
-            '-DWORDSTXT_COUNT=' + word_linecount
-        ]
-    )
-
-    executable(
-        'bench_ints',
-        'src/benchmarks/benchmark_ints.c',
+        'src/benchmarks/words400k.c',
         include_directories: incdir,
         link_with: lib_main
     )
-
 endif
