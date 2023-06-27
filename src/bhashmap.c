@@ -148,7 +148,7 @@ bhm_create(const size_t initial_capacity, const BHashMapConfig *config_user) {
 Find and return the appropriate bucket for a given key,
 based on its hash and the capacity of the hashmap.
 */
-static HashPair **
+static inline HashPair **
 find_bucket(const BHashMap *map, const void *key, const size_t keylen) {
     const uint32_t hash       = map->config.hashfunc(key, keylen),
                    bucket_idx = hash % map->capacity;
@@ -479,7 +479,8 @@ bhm_count(const BHashMap *map) {
 /* Return the configuration structure currently used by the specified BHashMap instance. 
    NOTE: This functions returns a copy of the configuration strucutre, _not_ a pointer to it. 
 */
-BHashMapConfig bhm_get_config(const BHashMap *map) {
+BHashMapConfig
+bhm_get_config(const BHashMap *map) {
     return map->config;
 }
 
