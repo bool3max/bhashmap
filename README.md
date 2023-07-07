@@ -58,11 +58,11 @@ A few `meson` build options are available. They can be set by running `meson`'s 
 $ meson configure <build_directory> -D <option>=<value>
 ```
 
-|   **Option name**  |  **Values** |        **Description**        |
-|:------------------:|:-----------:|:-----------------------------:|
-| `debug_functions`  | true, false | Enable debug message logging. |
-| `debug_benchmark`  | true, false | Enable benchmark logging.     |
-| `build_benchmarks` | true, false | Build the benchmark suite.    |
+| **Option name**    | **Values**  | **Default value** | **Description**               |
+|--------------------|-------------|-------------------|-------------------------------|
+| `debug_functions`  | true, false | false             | Enable debug message logging. |
+| `debug_benchmark`  | true, false | false             | Enable benchmark logging.     |
+| `build_benchmarks` | true, false | false             | Build the benchmark suite.    |
 
 If you built the benchmarks, they will be present as executables in the build directory with names beginning with `bench_` and can be ran directly.
 
