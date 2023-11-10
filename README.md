@@ -115,7 +115,7 @@ bhm_set(BHashMap *map, const void *key, const size_t keylen, const void *data);
 ```
 
 Insert a new key-value pair into the map, or update the associated value of an existing key.
-When a new key-value pair is inerted, a copy of the key is made and stored internally.
+When a new key-value pair is inserted, a copy of the key is made and stored internally.
 
 Returns `true` on success, and `false` on failure.
 
@@ -139,7 +139,7 @@ bhm_remove(BHashMap *map, const void *key, const size_t keylen);
 
 Remove a key from the map.
 
-Returns `true` if the key was found and removed successfully, and `false` if the wasn't found in the map.
+Returns `true` if the key was found and removed successfully, and `false` if the key wasn't found in the map.
 
 ### **`bhm_iterate`**
 
